@@ -1,4 +1,4 @@
-# Protocol Buffers (Google Protobuf) for Dummies
+# Protocol Buffers for Dummies
 
 ## Tags
 
