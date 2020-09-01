@@ -1,6 +1,6 @@
-# Protocol Buffers for Dummies (who code)
+# Protocol Buffers for (Coding) Dummies
 
-Explaining protocol buffers in plain (and slightly snarky) language.
+A (hopefully) slightly more entertaining introduction to Google protos. For people who got bored of reading [Google's official documentation](https://developers.google.com/protocol-buffers/docs/overview), and want a slightly less formal tone of writing.
 
 ## Why do we even need Protocol Buffers
 
@@ -16,29 +16,12 @@ The (self-declared) winner: protos!
 
 All internal Google applications use protos for their data serialization, so that should count for something. Lots of Googlers don't even use Chromebooks (I'm a Google engineer typing this out on my Macbook), so we don't blindly adopt products just because our employer made it.
 
-## Protoc magic: how to get code files from .proto files
-
-TLDR: The protocol buffer compiler (also referred to as protoc) does its magic and generates the code file in whatever programming language you specify. After [you download everything you need](https://developers.google.com/protocol-buffers/docs/downloads) and have all your `.proto` files ready to go, invoke the compiler in your terminal with the command below:
-
-`protoc --proto_path=IMPORT_PATH --cpp_out=DST_DIR path/to/file.proto`
-
-Let's break down what the heck is going on in that line.
-
-- `protoc`: Our handy-dandy protocol compiler!
-- `--proto_path=IMPORT_PATH`: Specifies the directory to look for `.proto` files when resolving the import directives (`.proto` files can import other `.proto` files).
-  - *Help, I have multiple directories to search for `.proto` files in.*  No problem, pass the `--proto_path` option as many times as you need.
-  - *Huh, I saw somebody run the protocol buffer compiler without using `--proto_path`. Is it optional?* That person probably used `-I`, a short version of `--proto_path`.
-- `--cpp_out=DST_DIR`: This is the **output directive**. It generates C++ code to `DST_DIR` (a.k.a. whatever directory you desire), with a class for each message type defined in your `.proto` file/s.
-  - *Ew, I hate C++. How do I generate code from my `.proto` files in another language?* Switch up the output directive: `--java_out` for Java, `--python_out` for python, etc. Google protocal buffers currently support C++. C#, Dart, Go, Java, and Python.
-  - *I don't see the language I'm using in the [official Google documentation](https://developers.google.com/protocol-buffers/docs/tutorials).* Beg Google to add support for your language. Personally I think the languages they support cover most usecases; consider adding a C++, Java, or python server to your project.
-- `/path/to/file.proto`: File path to all the `.proto` file/s you are providing as input. You can specify multiple `.proto` files. I usually put all of my `.proto` files into one directory and use regex so I'm not typing out every single file name: `/path/to/allprotos/*.proto`.
-
 ## Example of a (heavily commented) Proto Message
 
 Here is a `.proto` message representing the data needed in an address book. Scroll down more to see my detailed notes on different aspects of a proto message.
 
 ```proto2
-// Specify whether you're using proto2 or proto3
+// Specify whether you're using proto2 or proto3 at the top of the file
 syntax = "proto2";
 
 /***********/
@@ -133,10 +116,11 @@ repeated string phone_numbers = 7;
 
 If you know all the values a field that take in advance, use an `Enum` type. Note that the enum value.
 
-```proto3
+```proto2
 // we currently consider only 3 eye colors
 enum EyeColor {
-    UNKNOWN_EYE_COLOR = 0; // The default value
+    // The default value is UNKNOWN_EYE_COLOR, unless specified otherwise
+    UNKNOWN_EYE_COLOR = 0; 
     EYE_GREEN = 1;
     EYE_BROWN = 2;
     EYE_BLUE = 3;
@@ -150,8 +134,23 @@ EyeColor eye_color = 8;
 
 Add a line `package my.package.name` at the top of the `.proto` file to place a protocal buffer message into a particular package.
 
-It is very important to define the packages in which your protocol buffer messages live. When your code gets compiled, it will be placed inside the package you specified.
-
 Packages also help to prevent name conflicts, in the same way that C++ namespaces do (`my.package.Person`). Be careful when importing protos into other protos; you need to specify the correct package name when accessing packaged Protos.
 
 Packages help all the different languages (C++, Java, Python, etc) compile correctly from `.proto` files.
+
+## Protoc magic: how to get code files from .proto files
+
+TLDR: The protocol buffer compiler (also referred to as protoc) does its magic and generates the code file in whatever programming language you specify. After [you download everything you need](https://developers.google.com/protocol-buffers/docs/downloads) and have all your `.proto` files ready to go, invoke the compiler in your terminal with the command below:
+
+`protoc --proto_path=IMPORT_PATH --cpp_out=DST_DIR path/to/file.proto`
+
+Let's break down what the heck is going on in that line.
+
+- `protoc`: Our handy-dandy protocol compiler!
+- `--proto_path=IMPORT_PATH`: Specifies the directory to look for `.proto` files when resolving the import directives (`.proto` files can import other `.proto` files).
+  - *Help, I have multiple directories to search for `.proto` files in.*  No problem, pass the `--proto_path` option as many times as you need.
+  - *Huh, I saw somebody run the protocol buffer compiler without using `--proto_path`. Is it optional?* That person probably used `-I`, a short version of `--proto_path`.
+- `--cpp_out=DST_DIR`: This is the **output directive**. It generates C++ code to `DST_DIR` (a.k.a. whatever directory you desire), with a class for each message type defined in your `.proto` file/s.
+  - *Ew, I hate C++. How do I generate code from my `.proto` files in another language?* Switch up the output directive: `--java_out` for Java, `--python_out` for python, etc. Google protocal buffers currently support C++. C#, Dart, Go, Java, and Python.
+  - *I don't see the language I'm using in the [official Google documentation](https://developers.google.com/protocol-buffers/docs/tutorials).* Beg Google to add support for your language. Personally I think the languages they support cover most usecases; consider adding a C++, Java, or python server to your project.
+- `/path/to/file.proto`: File path to all the `.proto` file/s you are providing as input. You can specify multiple `.proto` files. I usually put all of my `.proto` files into one directory and use regex so I'm not typing out every single file name: `/path/to/allprotos/*.proto`.
