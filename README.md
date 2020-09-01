@@ -74,7 +74,7 @@ All the standard simple data types work (`bool`, `int32`, `int64`, `float`, `dou
 
 If you're handling some complicated data and those primitive types don't suffice, **you can use other proto messages as field types as well!** Notice the lines `repeated PhoneNumber phones = 4;` and `repeated Person people = 1;`; both of them are fields in the `Person` message, and use the messages `PhoneNumber` and `Person` respectively as field types. This "nesting" is what makes it so easy to represent complex data structures as proto messages.
 
-## Required v.s. Optional Fields
+### Required v.s. Optional Fields
 
 You'll notice that some fields are prepended with the `optional` modifier while others have the `required` modifier. As suggested by the name, optional fields are optional and required fields are required. That's probably one of the most redundant sentences I've formed in my entire life.
 
@@ -90,7 +90,7 @@ You can assign different numbers to fields. Notice the `=1` and `=2` in my code 
 - `1...15`: Use these tag values for frequently populated fields - they require one less byte to encode than the higher numbers. I know one byte doesn't sound like much, but it can go a long way.
 - `16...2047`: Basically use these when you use up 1 through 15.
 
-## Default Values of Fields
+### Default Values of Fields
 
 All fields, if not specified or unknown, will take a default value.
 
@@ -101,7 +101,7 @@ All fields, if not specified or unknown, will take a default value.
 - `enum`: first value (has a tag value of 0)
 - `repeated`: empty list
 
-## Repeated Fields
+### Repeated Fields
 
 To express a "list" or an "array", create a repeated field by prepending the field name with the `repeated` keyword. This allows a field to be repeated any number of times. The order of the values if preserved in the protocol buffer.
 
@@ -112,7 +112,7 @@ The opposite of a repeated field is a *singular field*, but we don't explicitly 
 repeated string phone_numbers = 7;
 ```
 
-## Enums
+### Enums
 
 If you know all the values a field that take in advance, use an `Enum` type. Note that the enum value.
 
@@ -134,13 +134,13 @@ EyeColor eye_color = 8;
 
 Add a line `package my.package.name` at the top of the `.proto` file to place a protocal buffer message into a particular package.
 
-Packages also help to prevent name conflicts, in the same way that C++ namespaces do (`my.package.Person`). Be careful when importing protos into other protos; you need to specify the correct package name when accessing packaged Protos.
+Packages help to prevent name conflicts, just like C++ namespaces (`my.package.Person`). Be careful when importing protos into other protos; you need to specify the correct package name when accessing packaged Protos, or else your compiler will freak out at you. Yes, I've done this many times. The bane of my existence is incorrect import statements.
 
-Packages help all the different languages (C++, Java, Python, etc) compile correctly from `.proto` files.
+## Time to compile - how to make protoc magically create code files from proto files
 
-## Protoc magic: how to get code files from .proto files
+`.proto` files are cool and all, but what we really care about is generating code files from it that we can actually work with. Your C++ program doesn't know what to do with a `.proto` file.
 
-TLDR: The protocol buffer compiler (also referred to as protoc) does its magic and generates the code file in whatever programming language you specify. After [you download everything you need](https://developers.google.com/protocol-buffers/docs/downloads) and have all your `.proto` files ready to go, invoke the compiler in your terminal with the command below:
+The protocol buffer compiler (also referred to as protoc) does its magic and generates the code file in whatever programming language you specify. After [you download everything you need](https://developers.google.com/protocol-buffers/docs/downloads) and have all your `.proto` files ready to go, invoke the compiler in your terminal with the command below:
 
 `protoc --proto_path=IMPORT_PATH --cpp_out=DST_DIR path/to/file.proto`
 
@@ -154,3 +154,98 @@ Let's break down what the heck is going on in that line.
   - *Ew, I hate C++. How do I generate code from my `.proto` files in another language?* Switch up the output directive: `--java_out` for Java, `--python_out` for python, etc. Google protocal buffers currently support C++. C#, Dart, Go, Java, and Python.
   - *I don't see the language I'm using in the [official Google documentation](https://developers.google.com/protocol-buffers/docs/tutorials).* Beg Google to add support for your language. Personally I think the languages they support cover most usecases; consider adding a C++, Java, or python server to your project.
 - `/path/to/file.proto`: File path to all the `.proto` file/s you are providing as input. You can specify multiple `.proto` files. I usually put all of my `.proto` files into one directory and use regex so I'm not typing out every single file name: `/path/to/allprotos/*.proto`.
+
+Once you run that command, you'll get these two files in your specified destination directory:
+
+- `addressbook.ph.h`: The header file that declares the classes protoc generated for us.
+- `addressbook.pb.cc`: The implementation of those classes
+
+## Protocol Buffer C++ API
+
+Our wonderful protocol buffer compiler generated a custom protocol buffer API from our `addressbook.proto` file! Look at all the code `protoc` generated from that Terminal command:
+
+```C++
+  // name field
+  inline bool has_name() const;
+  inline void clear_name();
+  // Normal getter
+  inline const ::std::string& name() const;
+  inline void set_name(const ::std::string& value); //setter
+  inline void set_name(const char* value); // setter
+  // Mutable getter, which gives you a direct pointer to the string
+  // so that you can mutate it (thus the name)
+  inline ::std::string* mutable_name();
+
+  // id field
+  inline bool has_id() const;
+  inline void clear_id();
+  inline int32_t id() const;
+  inline void set_id(int32_t value);
+
+  // email field
+  inline bool has_email() const;
+  inline void clear_email();
+  inline const ::std::string& email() const;
+  inline void set_email(const ::std::string& value);
+  inline void set_email(const char* value);
+  inline ::std::string* mutable_email();
+
+  /**********************/
+  // REPEATED FIELD API //
+  /*********************/
+  // Get the number of phone numbers
+  inline int phones_size() const; 
+  inline void clear_phones();
+  inline const ::google::protobuf::RepeatedPtrField< ::tutorial::Person_PhoneNumber >& phones() const;
+  inline ::google::protobuf::RepeatedPtrField< ::tutorial::Person_PhoneNumber >* mutable_phones();
+  inline const ::tutorial::Person_PhoneNumber& phones(int index) const;
+  inline ::tutorial::Person_PhoneNumber* mutable_phones(int index);
+  inline ::tutorial::Person_PhoneNumber* add_phones();
+```
+
+The compiler will generate getters and setters for each of your fields. The `mutable` getters return a direct pointer to the value. Note that for a mutable getter, even if the field isn't initialized, it will simply initialize a empty instance.
+
+### Repeated Fields API
+
+`repeated` fields get more than just setters and getters.
+
+- `inline int phones_size() const;`: Check the `_size` of your mutable field. In this case, this woul dbe number of phone numbers (kind of like the size of an array)
+- `inline const ::tutorial::Person_PhoneNumber& phones(int index) const;`: Getter. Get a specific phone number using its index. 
+- `inline ::tutorial::Person_PhoneNumber* mutable_phones(int index);`: Setter. You can mutate a phone number at a specific index.
+- `inline ::tutorial::Person_PhoneNumber* add_phones();`: Lets you add a new `phones` field to the message. Instead of passing in the new value as an argument, you call this method and then proceed to mutate the newly created entry using our setter in the bullet point above.
+
+### Enums and Nested Classes API
+
+Where are the nested messages and enums that I defined in my `.proto` file? For us, that would be `PhoneNumber` and `PhoneType` respectively. 
+
+- *Where's my `PhoneType` enum?* The enum values have a type of `Person::PhoneType` and can be accessed as `Person::MOBILE`, `Person::HOME`, and `Person::WORK`. 
+- *Where's my `PhoneNumber` nested message?* It is a nested class that can be accessed at `Person::PhoneNumber`. Technicaly, under the hood, this class is `Person_PhoneNumber`, but our compiler defines a typedef that lets you access it as if it were a nested class. Good compiler.
+
+### Standard Message Methods
+
+There are even MORE methods in each message class that lets you do stuff to the message itself, not just individual fields within it. This protocol buffers compiler is giving you lots of power.
+
+- `bool IsInitialized() const;`: Checks if all the required fields have been set. If you use any required fields, good practice to call this or else your program might break. Honestly, I'm lazy so it seems easier to just never used `required` fields in the first place.
+- `string DebugString() const;`: Returns a human-readable representation of the message. Unfortunately we can't read 0s and 1s, so this is a very useful method. Use it when debugging.
+- `void CopyFrom(const Person& from);`: Overwrites the message with the given message's values. If you're going to change a lot of values in a message, you might as well call this instead of calling the setter of each individual field.
+- `void Clear();`: Clears all the elements back to an empty state. Blank slate.
+
+### Parsing and Serialization
+
+Finally (I swear, I'll stop introducing new methods after this section), our lovely compiler generated methods for writing and reading messages.
+
+- `bool SerializeToString(string* output) const;`: Serializes the message ands tores the bytes in the provided string. No need for you to write your own string serialization algorithm, so screw you Leetcode encoding questions!
+- `bool ParseFromString(const string& data);`: Parses a message from a given string (a.k.a. deserializing).
+- `bool SerializeToOstream(ostream* output);`: Writing the message to some C++ ostream.
+- `bool ParseFromIstream(istream* input);`: Parses a message from some C++ `istream`.
+
+There are way more parsing and serialization methods, but those are the ones we'll use in this tutorial!
+
+## Let's write a message
+
+Instead of staring at the documentation, let's actually use our protocol buffers API! Let's say I want my address book app to write personal details to an address book file. In order to do this, I need to do the following:
+
+1. Create and populate instances of my protocol buffer classes (generated by the protocol compiler).
+2. Write the info to an output stream.
+
+## We wrote a message, so now let's read one.
