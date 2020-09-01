@@ -1,52 +1,113 @@
-# Protocol Buffers for Dummies
+# Protocol Buffers for Dummies (who code)
 
 Explaining protocol buffers in plain (and slightly snarky) language.
 
-## Why we even need Protocol Buffers
+## Why do we even need Protocol Buffers
 
-Short answer: efficient data serialization. Take Google's word for it.
+Short answer: Efficient data serialization. Take my word for it.
 
-Long answer: You technically have other options for data serialization. Here's why using protos is better ([at least it is according to Google](https://developers.google.com/protocol-buffers/docs/cpptutorial), who is admittedly be a little biased since they are the ones who made protos):
+Long answer: You technically have other options for data serialization. Let's look at each of them and explain why they kind of suck:
 
-- Save the language's data structures in binary form and send that. All data is ultimately a bunch of 0s and 1s, after all. However, this can break in so many ways, because you need to make sure the code is compiled with exactly the same memory layout, endianness, and so on. Programmers can't even agree on the same code editor, so this is a lost cause.
-- Write your own algorithm to encode data items into a string ([traumatic flashbacks to Leetcode hard questions about tree serialization](https://leetcode.com/problems/serialize-and-deserialize-binary-tree/)). This is a solid option for simple data, but once your data structures become more and more complicated, you're just wasting time reinventing the wheel.
-- Extensible Markup Language (XML). This is a markup language made for data serialization. Unfortunately, it's notoriously space-greedy, not to mention that navigating XML structures is super complicated.
+- Option 1: Save the language's data structures in binary form and send that. After all, data is ultimately just a bunch of 0s and 1s. However, this approach can break in so many ways; you need to make sure the code is compiled with exactly the same memory layout, endianness, and so on. Programmers can't even agree on a text editor (read this wiki article about the infamous [editor war](https://en.wikipedia.org/wiki/Editor_war) if you want to procrastinate), so this is a lost cause.
+- Option 2: Write your own algorithm to encode data items into a string ([cue the  traumatic flashbacks to Leetcode hard questions about tree serialization](https://leetcode.com/problems/serialize-and-deserialize-binary-tree/)). This is a solid option for simple data, but once your data structures become more and more complicated, you're wasting time reinventing the wheel.
+- Option 3: Extensible Markup Language (XML). This is a markup language made just for this task, plus it's (somewhat) human readable! Unfortunately, XML is notoriously space-greedy, not to mention that navigating XML structures can be a headache.
 
-Thus, the final conclusion is that protos are easier to use and more space efficient than other data serialization options out there! All internal Google applications use protos for their data serialization, so that should count for something. Trust me, lots of Googlers don't even use Chromebooks (I'm a Google engineer typing this sentence out on my Macbook), so we don't blindly adopt products just because our employer made it.
+The (self-declared) winner: protos!
 
-## How to generate actual code from `.proto` files
+All internal Google applications use protos for their data serialization, so that should count for something. Lots of Googlers don't even use Chromebooks (I'm a Google engineer typing this out on my Macbook), so we don't blindly adopt products just because our employer made it.
 
-TLDR: The protocol buffer compiler (also referred to as protoc) does its magic and generates the code file in whatever programming language you specify. After [downloading everything you need](https://developers.google.com/protocol-buffers/docs/downloads), and have all your `.proto` files ready to go, invoke the compiler in your terminal with the command below:
+## Protoc magic: how to get code files from .proto files
+
+TLDR: The protocol buffer compiler (also referred to as protoc) does its magic and generates the code file in whatever programming language you specify. After [you download everything you need](https://developers.google.com/protocol-buffers/docs/downloads) and have all your `.proto` files ready to go, invoke the compiler in your terminal with the command below:
 
 `protoc --proto_path=IMPORT_PATH --cpp_out=DST_DIR path/to/file.proto`
 
-Let's break down what's going on in that command.
+Let's break down what the heck is going on in that line.
 
 - `protoc`: Our handy-dandy protocol compiler!
-- `--proto_path=IMPORT_PATH`: Specifies the directory to look for `.proto` files when resovling the import directives within the `.proto` files (yes, `.proto` files can import each other).
+- `--proto_path=IMPORT_PATH`: Specifies the directory to look for `.proto` files when resolving the import directives (`.proto` files can import other `.proto` files).
   - *Help, I have multiple directories to search for `.proto` files in.*  No problem, pass the `--proto_path` option as many times as you need.
-  - *Huh, I saw somebody run the protocol buffer compiler without using `--proto_path`. Is it optional?* That person probably used `-I` instead as a short form to save their finger from the extra typing labor. Just be aware that it has the same functionality.
+  - *Huh, I saw somebody run the protocol buffer compiler without using `--proto_path`. Is it optional?* That person probably used `-I`, a short version of `--proto_path`.
 - `--cpp_out=DST_DIR`: This is the **output directive**. It generates C++ code to `DST_DIR` (a.k.a. whatever directory you desire), with a class for each message type defined in your `.proto` file/s.
   - *Ew, I hate C++. How do I generate code from my `.proto` files in another language?* Switch up the output directive: `--java_out` for Java, `--python_out` for python, etc. Google protocal buffers currently support C++. C#, Dart, Go, Java, and Python.
-  - *I don't see the language I'm using in the [official Google documentation](https://developers.google.com/protocol-buffers/docs/tutorials).* Beg Google to add support for your language. Personally I think the languages they support cover most usecases. Perhaps it's time to figure out how to add a C++ or python server to your project.
-- `/path/to/file.proto`: The `/proto` file/s you are providing as input. You can specify (and probably will, for more complex projects) multiple `.proto` files as well! I usually put all of my `.proto` files into one directory and use regex so I'm not typing out every single file name: `/path/to/allprotos/*.proto`.
+  - *I don't see the language I'm using in the [official Google documentation](https://developers.google.com/protocol-buffers/docs/tutorials).* Beg Google to add support for your language. Personally I think the languages they support cover most usecases; consider adding a C++, Java, or python server to your project.
+- `/path/to/file.proto`: File path to all the `.proto` file/s you are providing as input. You can specify multiple `.proto` files. I usually put all of my `.proto` files into one directory and use regex so I'm not typing out every single file name: `/path/to/allprotos/*.proto`.
 
-## Tags
+## Example of a (heavily commented) Proto Message
 
-This is arguably the most important part of a Protobuf.
+Here is a `.proto` message representing the data needed in an address book. Scroll down more to see my detailed notes on different aspects of a proto message.
 
-### Tag Values
+```proto2
+// Specify whether you're using proto2 or proto3
+syntax = "proto2";
 
-You can assign different numbers to tags. These aren't literal values of the fields, but indications of how much space each field takes up.
+/***********/
+// PACKAGE //
+/***********/
+// Your message will be packaged under "tutorial" now
+// It's good practice to use packages to prevent naming conflicts
+// between different projects. Fittingly, in C++ our generated
+// classes will be placed in a namespace of the same name ("tutorial")
+package tutorial;
 
-- `1...15`: Allocates 1 byte of space. Use these for frequently populated fields.
-- `16...2047`: Allocates 2 bytes of space.
+message Person {
+    // REQUIRED V.S. OPTIONAL FIELDS
+    // Be careful about setting fields as required; it can be a headache
+    // if the fields end up becoming optional later on. Some developers
+    // just stick to making all fields optional no matter what.
+    required string name = 1;
+    required int32 id = 2;
+    optional string email = 3;
 
-### Reserved tags
+    // ENUMS
+    // It's good practice to define enums if you have fields with a
+    // fixed set of values they could possibly take. Much more readable
+    enum PhoneType {
+        MOBILE = 0;
+        HOME = 1;
+        WORK = 2;
+    }
+
+    // NESTED MESSAGE DEFINITIONS
+    // You can define messages within other message definitions
+    message PhoneNumber {
+        required string number = 1;
+        optional PhoneType type = 2 [default = HOME];
+    }
+
+    // REPEATED FIELDS
+    // The repeated keyword allows us to have multiple numbers
+    repeated PhoneNumber phones = 4;
+}
+```
 
 ## Fields
 
-## Default Values
+A proto message is effectively a glorified set of fields. So if you understand fields, you basically know what a proto message is.
+
+### Field Types
+
+All the standard simple data types work (`bool`, `int32`, `int64`, `float`, `double`, `string`...are there even any more?).
+
+If you're handling some complicated data and those primitive types don't suffice, **you can use other proto messages as field types as well!** Notice the lines `repeated PhoneNumber phones = 4;` and `repeated Person people = 1;`; both of them are fields in the `Person` message, and use the messages `PhoneNumber` and `Person` respectively as field types. This "nesting" is what makes it so easy to represent complex data structures as proto messages.
+
+## Required v.s. Optional Fields
+
+You'll notice that some fields are prepended with the `optional` modifier while others have the `required` modifier. As suggested by the name, optional fields are optional and required fields are required. That's probably one of the most redundant sentences I've formed in my entire life.
+
+If you're interested, here are some important nuances:
+
+- `required`: If a value for this field is not provided, the message will be considered "uninitialized". Be careful; in optimized builds, they skip the `required` field check, so the message will be written anyway. You'll find out when you parse the uninitialized message (and fail at it) that the required field wasn't populated properly.
+- `optional`: If an optional field is not set, a default value is used (check out the "Default Values of Fields" section in this doc). You can set your own default value for simple field types, but for more complicated ones (a.k.a. anything where you use another proto message as a data type, so the `repeated PhoneNumber phones` field in my addressbook example).
+
+### Tag Numbers
+
+You can assign different numbers to fields. Notice the `=1` and `=2` in my code snippet. These aren't literal values of the fields, but unique identifiers (a.k.a. "tags") for each respective field. The compiler will freak out if you try ot use the same tag for several fields. Identity theft is a serious crime.
+
+- `1...15`: Use these tag values for frequently populated fields - they require one less byte to encode than the higher numbers. I know one byte doesn't sound like much, but it can go a long way.
+- `16...2047`: Basically use these when you use up 1 through 15.
+
+## Default Values of Fields
 
 All fields, if not specified or unknown, will take a default value.
 
@@ -59,9 +120,9 @@ All fields, if not specified or unknown, will take a default value.
 
 ## Repeated Fields
 
-- To express a "list" or an "array", create a repeated field by prepending the field name with the `repeated` keyword.
-- The list can take any number (0 or more) of elements that you want.
-- The opposite of a repeated field is a *singular field*, but we don't explicitly specify this. It's just the default type of a field.
+To express a "list" or an "array", create a repeated field by prepending the field name with the `repeated` keyword. This allows a field to be repeated any number of times. The order of the values if preserved in the protocol buffer.
+
+The opposite of a repeated field is a *singular field*, but we don't explicitly specify this. It's just the default type.
 
 ```proto3
 // A list of phone numbers that is optional to provide at signup
@@ -94,21 +155,3 @@ It is very important to define the packages in which your protocol buffer messag
 Packages also help to prevent name conflicts, in the same way that C++ namespaces do (`my.package.Person`). Be careful when importing protos into other protos; you need to specify the correct package name when accessing packaged Protos.
 
 Packages help all the different languages (C++, Java, Python, etc) compile correctly from `.proto` files.
-
-## Imports
-
-When importing, make sure to include the absolute file path from the root of your project.
-
-## Protoc
-
-We can use `protoc` to generate code in any language. Type `protoc` in the Terminal for all of the flags and commands.
-
-Let's dissect the command below:
-
-`protoc -I=my_protos --python_out=path/to/folder my_protos/*.proto`
-
-- `-I=my_protos`: Specify where your `.proto` files are
-- `--python_out=path/to/folder`: Generates a python source file to `path/to/folder`. You can pass in Java, C++, etc
-- `my_protos/*.proto`: Specifies that we will use all the `.proto` files in the `my_protos` folder to generate our source file.
-
-IMPORTANT NOTE: Make sure to pass an absolute file path to all of the flags. Using relative file paths has been buggy.
