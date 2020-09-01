@@ -1,5 +1,36 @@
 # Protocol Buffers for Dummies
 
+Explaining protocol buffers in plain (and slightly snarky) language.
+
+## Why we even need Protocol Buffers
+
+Short answer: efficient data serialization. Take Google's word for it.
+
+Long answer: You technically have other options for data serialization. Here's why using protos is better ([at least it is according to Google](https://developers.google.com/protocol-buffers/docs/cpptutorial), who is admittedly be a little biased since they are the ones who made protos):
+
+- Save the language's data structures in binary form and send that. All data is ultimately a bunch of 0s and 1s, after all. However, this can break in so many ways, because you need to make sure the code is compiled with exactly the same memory layout, endianness, and so on. Programmers can't even agree on the same code editor, so this is a lost cause.
+- Write your own algorithm to encode data items into a string ([traumatic flashbacks to Leetcode hard questions about tree serialization](https://leetcode.com/problems/serialize-and-deserialize-binary-tree/)). This is a solid option for simple data, but once your data structures become more and more complicated, you're just wasting time reinventing the wheel.
+- Extensible Markup Language (XML). This is a markup language made for data serialization. Unfortunately, it's notoriously space-greedy, not to mention that navigating XML structures is super complicated.
+
+Thus, the final conclusion is that protos are easier to use and more space efficient than other data serialization options out there! All internal Google applications use protos for their data serialization, so that should count for something. Trust me, lots of Googlers don't even use Chromebooks (I'm a Google engineer typing this sentence out on my Macbook), so we don't blindly adopt products just because our employer made it.
+
+## How to generate actual code from `.proto` files
+
+TLDR: The protocol buffer compiler (also referred to as protoc) does its magic and generates the code file in whatever programming language you specify. After [downloading everything you need](https://developers.google.com/protocol-buffers/docs/downloads), and have all your `.proto` files ready to go, invoke the compiler in your terminal with the command below:
+
+`protoc --proto_path=IMPORT_PATH --cpp_out=DST_DIR path/to/file.proto`
+
+Let's break down what's going on in that command.
+
+- `protoc`: Our handy-dandy protocol compiler!
+- `--proto_path=IMPORT_PATH`: Specifies the directory to look for `.proto` files when resovling the import directives within the `.proto` files (yes, `.proto` files can import each other).
+  - *Help, I have multiple directories to search for `.proto` files in.*  No problem, pass the `--proto_path` option as many times as you need.
+  - *Huh, I saw somebody run the protocol buffer compiler without using `--proto_path`. Is it optional?* That person probably used `-I` instead as a short form to save their finger from the extra typing labor. Just be aware that it has the same functionality.
+- `--cpp_out=DST_DIR`: This is the **output directive**. It generates C++ code to `DST_DIR` (a.k.a. whatever directory you desire), with a class for each message type defined in your `.proto` file/s.
+  - *Ew, I hate C++. How do I generate code from my `.proto` files in another language?* Switch up the output directive: `--java_out` for Java, `--python_out` for python, etc. Google protocal buffers currently support C++. C#, Dart, Go, Java, and Python.
+  - *I don't see the language I'm using in the [official Google documentation](https://developers.google.com/protocol-buffers/docs/tutorials).* Beg Google to add support for your language. Personally I think the languages they support cover most usecases. Perhaps it's time to figure out how to add a C++ or python server to your project.
+- `/path/to/file.proto`: The `/proto` file/s you are providing as input. You can specify (and probably will, for more complex projects) multiple `.proto` files as well! I usually put all of my `.proto` files into one directory and use regex so I'm not typing out every single file name: `/path/to/allprotos/*.proto`.
+
 ## Tags
 
 This is arguably the most important part of a Protobuf.
